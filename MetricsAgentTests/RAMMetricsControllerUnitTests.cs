@@ -1,30 +1,32 @@
 ﻿using MetricsAgent.Controllers;
-using Microsoft.AspNetCore.Mvc;
+using MetricsAgent.DAL;
+using Moq;
 using System;
 using Xunit;
+using Microsoft.Extensions.Logging;
+using System.Collections.Generic;
 
-namespace MetricsManagerTests
-{
-    public class RAMMetricsControllerUnitTests
+namespace MetricsAgentTests
     {
-        private RamMetricsController controller;
-        private int agentId;
-
-        public RAMMetricsControllerUnitTests()
+        public class RamMetricsControllerUnitTests
         {
-            controller = new RamMetricsController();
-        }
+            private RamMetricsController controller;
+            private Mock<IRamMetricsRepository> mockRepository;
+            private readonly Mock<ILogger<RamMetricsController>> mockLogger;
 
-        [Fact]
-        public void GetMetricsFromAgent_ReturnsOk()
-        {
-            //Arrange
+            public RamMetricsControllerUnitTests()
+            {
+                mockRepository = new Mock<IRamMetricsRepository>();
+                mockLogger = new Mock<ILogger<RamMetricsController>>();
+                controller = new RamMetricsController(mockLogger.Object, mockRepository.Object);
+            }
 
-            //Act
-            var result = controller.GetMetrics();
-
-            // Assert
-            _ = Assert.IsAssignableFrom<IActionResult>(result);
+            [Fact]
+            public void GetByTimePeriod_ShouldCall_GetByTimePeriod_From_Repository()
+            {
+                mockRepository.Setup(repository => repository.GetByTimePeriod(It.IsAny<long>(), It.IsAny<long>())).Returns(new List<RamMetric>());
+            var result = controller.GetMetrics(DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
+                mockRepository.Verify(repository => repository.GetByTimePeriod(It.IsAny<long>(), It.IsAny<long>()), Times.AtMostOnce());
+            }
         }
     }
-}

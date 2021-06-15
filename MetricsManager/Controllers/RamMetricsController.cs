@@ -4,22 +4,32 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace MetricsManager.Controllers
 {
-    [Route("api/metrics/ram")]
+    [Route("api/metrics/ram/available")]
     [ApiController]
     public class RamMetricsController : ControllerBase
     {
-        [HttpGet("agent/{agentId}/available")]
-        public IActionResult GetMetricsFromAgent([FromRoute] int agentId)
+        private readonly ILogger<RamMetricsController> _logger;
+        public RamMetricsController(ILogger<RamMetricsController> logger)
         {
+            _logger = logger;
+            _logger.LogDebug(1, "NLog встроен в RamMetricsController.");
+        }
+
+        [HttpGet("agent/{agentId}/from/{fromTime}/to/{toTime}")]
+        public IActionResult GetMetricsFromAgent([FromRoute] int agentId, [FromRoute] DateTimeOffset fromTime, [FromRoute] DateTimeOffset toTime)
+        {
+            _logger.LogInformation($"Запуск RamMetricsController.GetMetricsFromAgent с параметрами: {agentId}, {fromTime}, {toTime}.");
             return Ok();
         }
 
-        [HttpGet("cluster/available")]
-        public IActionResult GetMetricsFromAllCluster()
+        [HttpGet("cluster/from/{fromTime}/to/{toTime}")]
+        public IActionResult GetMetricsFromAllCluster([FromRoute] DateTimeOffset fromTime, [FromRoute] DateTimeOffset toTime)
         {
+            _logger.LogInformation($"Запуск RamMetricsController.GetMetricsFromAllCluster с параметрами: {fromTime}, {toTime}.");
             return Ok();
         }
     }
