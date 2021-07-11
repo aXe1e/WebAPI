@@ -1,33 +1,32 @@
 ﻿using MetricsAgent.Controllers;
-using Microsoft.AspNetCore.Mvc;
+using MetricsAgent.DAL;
+using Moq;
 using System;
 using Xunit;
+using Microsoft.Extensions.Logging;
+using System.Collections.Generic;
 
-namespace MetricsManagerTests
-{
-    public class NetworkMetricsControllerUnitTests
+namespace MetricsAgentTests
     {
-        private NetworkMetricsController controller;
-        private TimeSpan fromTime;
-        private TimeSpan toTime;
+        public class NetworkMetricsControllerUnitTests
+    {
+            private NetworkMetricsController controller;
+            private Mock<INetworkMetricsRepository> mockRepository;
+            private readonly Mock<ILogger<NetworkMetricsController>> mockLogger;
 
-        public NetworkMetricsControllerUnitTests()
-        {
-            controller = new NetworkMetricsController();
-            fromTime = TimeSpan.FromSeconds(0);
-            toTime = TimeSpan.FromSeconds(100);
-        }
+            public NetworkMetricsControllerUnitTests()
+            {
+                mockRepository = new Mock<INetworkMetricsRepository>();
+                mockLogger = new Mock<ILogger<NetworkMetricsController>>();
+                controller = new NetworkMetricsController(mockLogger.Object, mockRepository.Object);
+            }
 
-        [Fact]
-        public void GetMetricsFromAgent_ReturnsOk()
-        {
-            //Arrange
-
-            //Act
-            var result = controller.GetMetrics(fromTime, toTime);
-
-            // Assert
-            _ = Assert.IsAssignableFrom<IActionResult>(result);
+            [Fact]
+            public void GetByTimePeriod_ShouldCall_GetByTimePeriod_From_Repository()
+            {
+                mockRepository.Setup(repository => repository.GetByTimePeriod(It.IsAny<long>(), It.IsAny<long>())).Returns(new List<NetworkMetric>());
+            var result = controller.GetMetrics(DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
+                mockRepository.Verify(repository => repository.GetByTimePeriod(It.IsAny<long>(), It.IsAny<long>()), Times.AtMostOnce());
+            }
         }
     }
-}

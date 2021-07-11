@@ -1,29 +1,32 @@
 ﻿using MetricsAgent.Controllers;
-using Microsoft.AspNetCore.Mvc;
+using MetricsAgent.DAL;
+using Moq;
 using System;
 using Xunit;
+using Microsoft.Extensions.Logging;
+using System.Collections.Generic;
 
-namespace MetricsManagerTests
+namespace MetricsAgentTests
 {
-    public class HDDMetricsControllerUnitTests
+    public class HddMetricsControllerUnitTests
     {
         private HddMetricsController controller;
+        private Mock<IHddMetricsRepository> mockRepository;
+        private readonly Mock<ILogger<HddMetricsController>> mockLogger;
 
-        public HDDMetricsControllerUnitTests()
+        public HddMetricsControllerUnitTests()
         {
-            controller = new HddMetricsController();
+            mockRepository = new Mock<IHddMetricsRepository>();
+            mockLogger = new Mock<ILogger<HddMetricsController>>();
+            controller = new HddMetricsController(mockLogger.Object, mockRepository.Object);
         }
 
         [Fact]
-        public void GetMetricsFromAgent_ReturnsOk()
+        public void GetByTimePeriod_ShouldCall_GetByTimePeriod_From_Repository()
         {
-            //Arrange
-
-            //Act
-            var result = controller.GetMetrics();
-
-            // Assert
-            _ = Assert.IsAssignableFrom<IActionResult>(result);
+            mockRepository.Setup(repository => repository.GetByTimePeriod(It.IsAny<long>(), It.IsAny<long>())).Returns(new List<HddMetric>());
+            var result = controller.GetMetrics(DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
+            mockRepository.Verify(repository => repository.GetByTimePeriod(It.IsAny<long>(), It.IsAny<long>()), Times.AtMostOnce());
         }
     }
 }
