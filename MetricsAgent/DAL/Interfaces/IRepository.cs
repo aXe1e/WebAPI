@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
 
-namespace MetricsAgent.DAL
+namespace MetricsAgent.DAL.Interfaces
 {
     public interface IRepository<T> where T : class
     {
