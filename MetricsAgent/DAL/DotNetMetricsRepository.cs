@@ -8,32 +8,27 @@ namespace MetricsAgent.DAL
 {
     public interface IDotNetMetricsRepository : IRepository<DotNetMetric>
     {
-
     }
     public class DotNetMetricsRepository : IDotNetMetricsRepository
     {
-        private const string ConnectionString = "Data Source=metrics.db;Version=3;Pooling=true;Max Pool Size=100;";
-        // инжектируем соединение с базой данных в наш репозиторий через конструктор
-
         public void Create(DotNetMetric item)
         {
-            using var connection = new SQLiteConnection(ConnectionString);
-            connection.Open();
+            var connectionManager = new ConnectionManager();
+            using (var cmd = new SQLiteCommand(connectionManager.CreateOpenedConnection()))
+            {
+                cmd.CommandText = "INSERT INTO dotnetmetrics(value, time) VALUES(@value, @time)";
+                cmd.Parameters.AddWithValue("@value", item.Value);
+                cmd.Parameters.AddWithValue("@time", item.Time);
+                cmd.Prepare();
 
-            using var cmd = new SQLiteCommand(connection);
-            cmd.CommandText = "INSERT INTO dotnetmetrics(value, time) VALUES(@value, @time)";
-            cmd.Parameters.AddWithValue("@value", item.Value);
-            cmd.Parameters.AddWithValue("@time", item.Time);
-            cmd.Prepare();
-
-            cmd.ExecuteNonQuery();
+                cmd.ExecuteNonQuery();
+            }
         }
 
         public IList<DotNetMetric> GetByTimePeriod(long fromTime, long toTime)
         {
-            using var connection = new SQLiteConnection(ConnectionString);
-            connection.Open();
-            using var cmd = new SQLiteCommand(connection);
+            var connectionManager = new ConnectionManager();
+            using var cmd = new SQLiteCommand(connectionManager.CreateOpenedConnection());
 
             cmd.CommandText = "SELECT id, value, time FROM dotnetmetrics WHERE time BETWEEN @fromTime AND @toTime";
             cmd.Parameters.AddWithValue("@fromTime", fromTime);

@@ -10,33 +10,29 @@ namespace MetricsAgent.DAL
     // необходим, чтобы проверить работу репозитория на тесте-заглушке
     public interface IRamMetricsRepository : IRepository<RamMetric>
     {
-
     }
 
     public class RamMetricsRepository : IRamMetricsRepository
     {
-        private const string ConnectionString = "Data Source=metrics.db;Version=3;Pooling=true;Max Pool Size=100;";
-        // инжектируем соединение с базой данных в наш репозиторий через конструктор
-
         public void Create(RamMetric item)
         {
-            using var connection = new SQLiteConnection(ConnectionString);
-            connection.Open();
-            
-            using var cmd = new SQLiteCommand(connection);
-            cmd.CommandText = "INSERT INTO rammetrics (value, time) VALUES(@value, @time)";
-            cmd.Parameters.AddWithValue("@value", item.Value);
-            cmd.Parameters.AddWithValue("@time", item.Time);
-            cmd.Prepare();
+            var connectionManager = new ConnectionManager();
 
-            cmd.ExecuteNonQuery();
+            using (var cmd = new SQLiteCommand(connectionManager.CreateOpenedConnection()))
+            {
+                cmd.CommandText = "INSERT INTO rammetrics (value, time) VALUES(@value, @time)";
+                cmd.Parameters.AddWithValue("@value", item.Value);
+                cmd.Parameters.AddWithValue("@time", item.Time);
+                cmd.Prepare();
+
+                cmd.ExecuteNonQuery();
+            }
         }
 
         public IList<RamMetric> GetByTimePeriod(long fromTime, long toTime)
         {
-            using var connection = new SQLiteConnection(ConnectionString);
-            connection.Open();
-            using var cmd = new SQLiteCommand(connection);
+            var connectionManager = new ConnectionManager();
+            using var cmd = new SQLiteCommand(connectionManager.CreateOpenedConnection());
 
             cmd.CommandText = "SELECT id, value, time FROM rammetrics WHERE time BETWEEN @fromTime AND @toTime";
             cmd.Parameters.AddWithValue("@fromTime", fromTime);
