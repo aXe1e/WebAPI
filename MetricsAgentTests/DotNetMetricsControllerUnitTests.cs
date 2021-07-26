@@ -1,6 +1,7 @@
 ﻿using MetricsAgent.Controllers;
 using MetricsAgent.DAL.Interfaces;
 using MetricsAgent.DAL.Models;
+using MetricsAgent.Core;
 using Moq;
 using System;
 using Xunit;
@@ -15,14 +16,14 @@ namespace MetricsAgentTests
         private DotNetMetricsController controller;
         private Mock<IDotNetMetricsRepository> mockRepository;
         private readonly Mock<ILogger<DotNetMetricsController>> mockLogger;
-        private readonly Mock<IMapper> mockMapper;
 
         public DotNetMetricsControllerUnitTests()
         {
             mockRepository = new Mock<IDotNetMetricsRepository>();
             mockLogger = new Mock<ILogger<DotNetMetricsController>>();
-            mockMapper = new Mock<IMapper>();
-            controller = new DotNetMetricsController(mockLogger.Object, mockRepository.Object, mockMapper.Object);
+            var mapperConfiguration = new MapperConfiguration(mapper => mapper.AddProfile(new MapperProfile()));
+            var mapper = mapperConfiguration.CreateMapper();
+            controller = new DotNetMetricsController(mockLogger.Object, mockRepository.Object, mapper);
         }
 
         [Fact]

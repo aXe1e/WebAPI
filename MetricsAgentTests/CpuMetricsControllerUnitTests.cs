@@ -1,6 +1,7 @@
 using MetricsAgent.Controllers;
 using MetricsAgent.DAL.Interfaces;
 using MetricsAgent.DAL.Models;
+using MetricsAgent.Core;
 using Moq;
 using System;
 using Xunit;
@@ -15,14 +16,14 @@ namespace MetricsAgentTests
         private CpuMetricsController controller;
         private Mock<ICpuMetricsRepository> mockRepository;
         private readonly Mock<ILogger<CpuMetricsController>> mockLogger;
-        private readonly Mock<IMapper> mockMapper;
-
+        
         public CPUMetricsControllerUnitTests()
         {
             mockRepository = new Mock<ICpuMetricsRepository>();
             mockLogger = new Mock<ILogger<CpuMetricsController>>();
-            mockMapper = new Mock<IMapper>();
-            controller = new CpuMetricsController(mockLogger.Object, mockRepository.Object, mockMapper.Object);            
+            var mapperConfiguration = new MapperConfiguration(mapper => mapper.AddProfile(new MapperProfile()));
+            var mapper = mapperConfiguration.CreateMapper();
+            controller = new CpuMetricsController(mockLogger.Object, mockRepository.Object, mapper);            
         }
 
         [Fact]
