@@ -1,3 +1,4 @@
+using System;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -7,9 +8,13 @@ using Microsoft.OpenApi.Models;
 using MetricsAgent.DAL;
 using MetricsAgent.DAL.Interfaces;
 using MetricsAgent.DAL.Repositories;
-using System.Data.SQLite;
-using Dapper;
+using MetricsAgent.Jobs;
+using MetricsAgent.Jobs.Job;
 using AutoMapper;
+using FluentMigrator.Runner;
+using Quartz;
+using Quartz.Spi;
+using Quartz.Impl;
 
 namespace MetricsAgent.Core
 {
@@ -34,49 +39,55 @@ namespace MetricsAgent.Core
             var mapperConfiguration = new MapperConfiguration(mapper => mapper.AddProfile(new MapperProfile()));
             var mapper = mapperConfiguration.CreateMapper();
             services.AddSingleton(mapper);
-            
+            services.AddSingleton<IConnectionManager, ConnectionManager>();
+
+            services.AddFluentMigratorCore()
+                .ConfigureRunner(rb => rb
+                    // добавл€ем поддержку SQLite 
+                    .AddSQLite()
+                    // устанавливаем строку подключени€
+                    .WithGlobalConnectionString(ConnectionManager.ConnectionString)
+                    // подсказываем где искать классы с миграци€ми
+                    .ScanIn(typeof(Startup).Assembly).For.Migrations()
+                ).AddLogging(lb => lb
+                    .AddFluentMigratorConsole());
+
             services.AddSingleton<ICpuMetricsRepository, CpuMetricsRepository>();
             services.AddSingleton<IDotNetMetricsRepository, DotNetMetricsRepository>();
             services.AddSingleton<IHddMetricsRepository, HddMetricsRepository>();
             services.AddSingleton<INetworkMetricsRepository, NetworkMetricsRepository>();
             services.AddSingleton<IRamMetricsRepository, RamMetricsRepository>();
-            services.AddSingleton<IConnectionManager, ConnectionManager>();
 
-            ConfigureSqlLiteConnection();
-        }
+            services.AddSingleton<IJobFactory, SingletonJobFactory>();
+            services.AddSingleton<ISchedulerFactory, StdSchedulerFactory>();
 
-        private void ConfigureSqlLiteConnection()
-        {
-            using (var connection = new SQLiteConnection(ConnectionManager.ConnectionString))
-            {
-                PrepareSchema(connection);
-            }            
-        }
+            services.AddSingleton<CpuMetricJob>();            
+            services.AddSingleton<DotNetMetricJob>();
+            services.AddSingleton<HddMetricJob>();
+            services.AddSingleton<NetworkMetricJob>();
+            services.AddSingleton<RamMetricJob>();
 
-        private void PrepareSchema(SQLiteConnection connection)
-        {
-            // удал€ем таблицу с метриками если она существует в базе данных
-            connection.Execute("DROP TABLE IF EXISTS cpumetrics");
-            connection.Execute("DROP TABLE IF EXISTS dotnetmetrics");
-            connection.Execute("DROP TABLE IF EXISTS hddmetrics");
-            connection.Execute("DROP TABLE IF EXISTS networkmetrics");
-            connection.Execute("DROP TABLE IF EXISTS rammetrics");
+            services.AddSingleton(new JobSchedule(
+                jobType: typeof(CpuMetricJob),
+                cronExpression: "0/5 * * * * ?")); // запускать каждые 5 секунд
+            services.AddSingleton(new JobSchedule(
+                jobType: typeof(DotNetMetricJob),
+                cronExpression: "0/5 * * * * ?"));
+            services.AddSingleton(new JobSchedule(
+                jobType: typeof(HddMetricJob),
+                cronExpression: "0/5 * * * * ?"));
+            services.AddSingleton(new JobSchedule(
+                jobType: typeof(NetworkMetricJob),
+                cronExpression: "0/5 * * * * ?"));
+            services.AddSingleton(new JobSchedule(
+                jobType: typeof(RamMetricJob),
+                cronExpression: "0/5 * * * * ?"));
 
-            // заполн€ем Ѕƒ первичными данными
-            connection.Execute("CREATE TABLE cpumetrics (id INTEGER PRIMARY KEY, value INT, time INT)");
-            connection.Execute("insert into cpumetrics (value, time) values (80, 1623672000), (90, 1623672060), (95, 1623672120), (85, 1623672180), (50, 1623672240)");
-            connection.Execute("CREATE TABLE dotnetmetrics (id INTEGER PRIMARY KEY, value INT, time INT)");
-            connection.Execute("insert into dotnetmetrics (value, time) values (1, 1623672000), (2, 1623672060), (3, 1623672120), (4, 1623672180), (5, 1623672240)");
-            connection.Execute("CREATE TABLE hddmetrics (id INTEGER PRIMARY KEY, value INT, time INT)");
-            connection.Execute("insert into hddmetrics (value, time) values (51, 1623672000), (50, 1623672060), (49, 1623672120), (48, 1623672180), (47, 1623672240)");
-            connection.Execute("CREATE TABLE networkmetrics (id INTEGER PRIMARY KEY, value INT, time INT)");
-            connection.Execute("insert into networkmetrics (value, time) values (80, 1623672000), (10, 1623672060), (5, 1623672120), (15, 1623672180), (30, 1623672240)");
-            connection.Execute("CREATE TABLE rammetrics (id INTEGER PRIMARY KEY, value INT, time INT)");
-            connection.Execute("insert into rammetrics (value, time) values (80, 1623672000), (85, 1623672060), (85, 1623672120), (85, 1623672180), (80, 1623672240)");
+            services.AddHostedService<QuartzHostedService>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IMigrationRunner migrationRunner)
         {
             if (env.IsDevelopment())
             {
@@ -95,6 +106,9 @@ namespace MetricsAgent.Core
             {
                 endpoints.MapControllers();
             });
+
+            // запускаем миграции
+            migrationRunner.MigrateUp();
         }
     }
 }
